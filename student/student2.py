@@ -1,4 +1,5 @@
 from typing import List
+import math
 
 # Adapted from code by Zach Peats
 
@@ -6,6 +7,9 @@ from typing import List
 # Do not touch the client message class!
 # ======================================================================================================================
 
+RESERVOIR = 1/3
+UPPER_RESERVOIR = 1/8
+LOG_FILE = "bba.log"
 
 class ClientMessage:
 	"""
@@ -61,7 +65,21 @@ class ClientMessage:
 
 # Your helper functions, variables, classes here. You may also write initialization routines to be called
 # when this script is first imported and anything else you wish.
+def log(client_message: ClientMessage, quality):
+	with open(LOG_FILE, 'a') as f:
+		occupancy = client_message.buffer_seconds_until_empty / client_message.buffer_max_size
+		f.write(f"{occupancy},{quality/(client_message.quality_levels-1)},{client_message.quality_bitrates[quality]}\n")
+		f.close()
 
+def bba(client_message: ClientMessage):
+	occupancy = client_message.buffer_seconds_until_empty
+	reservoir = client_message.buffer_max_size*RESERVOIR
+	upper_reservoir = client_message.buffer_max_size*UPPER_RESERVOIR
+
+	if(occupancy < reservoir): return 0
+	if(occupancy > (client_message.buffer_max_size - upper_reservoir)): return client_message.quality_levels-1
+
+	return math.floor((client_message.quality_levels) * ((occupancy - reservoir) / (client_message.buffer_max_size - reservoir - upper_reservoir)))
 
 def student_entrypoint(client_message: ClientMessage):
 	"""
@@ -84,4 +102,8 @@ def student_entrypoint(client_message: ClientMessage):
 
 	:return: float Your quality choice. Must be one in the range [0 ... quality_levels - 1] inclusive.
 	"""
-	return client_message.quality_levels - 1  # Let's see what happens if we select the highest bitrate every time
+
+	quality = int(bba(client_message))
+	print(f"choosing quality {quality} of {client_message.quality_bitrates} for {client_message.buffer_seconds_until_empty} out of {client_message.buffer_max_size}")
+	log(client_message, quality)
+	return quality
