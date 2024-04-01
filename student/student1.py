@@ -57,10 +57,41 @@ class ClientMessage:
 	variation_coefficient: float
 	rebuffering_coefficient: float
 # ======================================================================================================================
-
+class ClientMonitoring:
+    throughput_buffer: dict
 
 # Your helper functions, variables, classes here. You may also write initialization routines to be called
 # when this script is first imported and anything else you wish.
+def harmonic_mean(num_list):
+    tot = 0
+    for num in num_list:
+        tot += (1/num)
+    mean = len(num_list) / tot
+    
+
+def test(client_message: ClientMessage):
+    class_attrs = vars(ClientMessage)["__annotations__"]
+    # print(class_attrs["__annotations__"])
+    # print(class_attrs.keys())
+    print(vars(client_message))
+    
+    # for attr in class_attrs.keys():
+    #     # print(client_message.total_seconds_elapsed)
+    #     if attr != "buffer_current_fill":
+    #         # print(f'{attr}: {vars(client_message)}')
+    # print(client_message.quality_bitrates)
+    # print("*")
+    # print(client_message.buffer_seconds_per_chunk)
+    # print("**")
+    # print(client_message.buffer_max_size)
+    # print("***")
+    # print(client_message.buffer_seconds_until_empty)
+    # print("****")
+    # print(client_message.quality_bitrates)
+    # print("*****")
+
+def Robust_MPC(client_message, throughput_buffer, len_buffer):
+    
 
 
 def student_entrypoint(client_message: ClientMessage):
@@ -84,4 +115,5 @@ def student_entrypoint(client_message: ClientMessage):
 
 	:return: float Your quality choice. Must be one in the range [0 ... quality_levels - 1] inclusive.
 	"""
-	return 0  # Let's see what happens if we select the lowest bitrate every time
+	test(client_message)
+	return 1  # Let's see what happens if we select the lowest bitrate every time
