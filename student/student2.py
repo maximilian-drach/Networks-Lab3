@@ -7,8 +7,8 @@ import math
 # Do not touch the client message class!
 # ======================================================================================================================
 
-RESERVOIR = 1/3
-UPPER_RESERVOIR = 1/8
+UPPER_RESERVOIR = 1/6
+SMOOTHING_PARAMETER = 1/4
 LOG_FILE = "bba.log"
 
 class ClientMessage:
@@ -65,21 +65,64 @@ class ClientMessage:
 
 # Your helper functions, variables, classes here. You may also write initialization routines to be called
 # when this script is first imported and anything else you wish.
-def log(client_message: ClientMessage, quality):
-	with open(LOG_FILE, 'a') as f:
-		occupancy = client_message.buffer_seconds_until_empty / client_message.buffer_max_size
-		f.write(f"{occupancy},{quality/(client_message.quality_levels-1)},{client_message.quality_bitrates[quality]}\n")
-		f.close()
 
-def bba(client_message: ClientMessage):
-	occupancy = client_message.buffer_seconds_until_empty
-	reservoir = client_message.buffer_max_size*RESERVOIR
-	upper_reservoir = client_message.buffer_max_size*UPPER_RESERVOIR
+class BBA:
+	def __init__(self, log=True):
+		self.mu_vbr = 0.0
+		self.num_chunks = 0
+		self.log = log
 
-	if(occupancy < reservoir): return 0
-	if(occupancy > (client_message.buffer_max_size - upper_reservoir)): return client_message.quality_levels-1
+		self.startup = True
+		self.last_chunk = 0.0
+		self.last_quality = 0
 
-	return math.floor((client_message.quality_levels) * ((occupancy - reservoir) / (client_message.buffer_max_size - reservoir - upper_reservoir)))
+		if(self.log):
+			f = open(LOG_FILE, 'w')
+			f.close()
+
+
+	def __call__(self, message: ClientMessage):
+		self.mu_vbr = (self.mu_vbr*self.num_chunks + message.quality_bitrates[0])  / (self.num_chunks+1)
+		self.num_chunks += 1
+
+		num_upcoming = min(len(message.upcoming_quality_bitrates), int(2*message.buffer_max_size))
+		delta_buf = sum([r[0] - self.mu_vbr for r in message.upcoming_quality_bitrates[0:num_upcoming]]) / self.mu_vbr
+		reservoir = min(max(delta_buf, 8.0), message.buffer_max_size * .6)
+		
+		upper_reservoir = message.buffer_max_size*UPPER_RESERVOIR
+
+		occupancy = message.buffer_seconds_until_empty
+		quality = 0
+		if(occupancy < reservoir): quality = 0
+		elif(occupancy > (message.buffer_max_size - upper_reservoir)): quality = message.quality_levels-1
+		else: quality = int(math.floor((message.quality_levels) * ((occupancy - reservoir) / (message.buffer_max_size - reservoir - upper_reservoir))))
+
+		if self.startup and self.num_chunks > 1:
+			delta_time = message.total_seconds_elapsed - self.last_chunk
+			if delta_time > message.buffer_seconds_per_chunk or quality > self.last_quality: 
+				self.startup=False
+			elif occupancy >= reservoir and delta_time < message.buffer_seconds_per_chunk * 0.5:
+				quality = min(self.last_quality+1, message.quality_levels-1)
+			elif occupancy < reservoir and delta_time < message.buffer_seconds_per_chunk * 0.125:
+				quality = min(self.last_quality+1, message.quality_levels-1)
+			else: quality = self.last_quality
+			
+		# farther smoothing: implement a schmitt trigger
+		if delta_buf > (SMOOTHING_PARAMETER*message.buffer_max_size) and quality > self.last_quality: quality = self.last_quality
+
+		self.last_quality = quality
+		self.last_chunk = message.total_seconds_elapsed
+		return quality
+	
+	def logger(self, message: ClientMessage, quality: int):
+		if(self.log):
+			with open(LOG_FILE, 'a') as f:
+				occupancy = message.buffer_seconds_until_empty / message.buffer_max_size
+				f.write(f"{occupancy},{quality/(message.quality_levels-1)},{message.quality_bitrates[quality]}\n")
+				f.close()
+
+global bba
+bba = None
 
 def student_entrypoint(client_message: ClientMessage):
 	"""
@@ -102,8 +145,11 @@ def student_entrypoint(client_message: ClientMessage):
 
 	:return: float Your quality choice. Must be one in the range [0 ... quality_levels - 1] inclusive.
 	"""
+	global bba
+	if bba is None: 
+		print("initalizing bba")
+		bba = BBA()
 
-	quality = int(bba(client_message))
-	print(f"choosing quality {quality} of {client_message.quality_bitrates} for {client_message.buffer_seconds_until_empty} out of {client_message.buffer_max_size}")
-	log(client_message, quality)
+	quality = bba(client_message)
+	bba.logger(client_message, quality)
 	return quality
