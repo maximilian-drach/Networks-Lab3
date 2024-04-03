@@ -1,5 +1,6 @@
 from typing import List
 import itertools
+import time
 
 # Adapted from code by Zach Peats
 
@@ -7,6 +8,8 @@ import itertools
 # Do not touch the client message class!
 # ======================================================================================================================
 MDP_K = 5
+THROUGHPUT_CHUNKS = 5
+LOG_FILE = "mpc.log"
 
 class ClientMessage:
 	"""
@@ -62,7 +65,7 @@ class ClientMessage:
 # Your helper functions, variables, classes here. You may also write initialization routines to be called
 # when this script is first imported and anything else you wish.
 throughput_estimate_list = []
-prev_bitrate = 0
+
 class extra:
     prev_bitrate: int
 def harmonic_mean(num_list):
@@ -75,7 +78,7 @@ def harmonic_mean(num_list):
         abs_error = abs(hmean - num) / abs(num)
         if abs_error > max_abs_error:
             max_abs_error = abs_error
-    return hmean, max_abs_error*100
+    return hmean, max_abs_error
     
 
 def index_list_creator(number_bitrate_levels, mdp_k):
@@ -107,29 +110,31 @@ def test(client_message: ClientMessage):
     print(vars(client_message))
   
     
-def QoE_Score(client_message, video_quality_Rk, video_quality_Rk_1, C_estimate, buffer_occupancy):
-	# QoE = -1
-	# if (client_message.rebuffering_coefficient*sum([((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)) for i in range(len(video_quality_Rk))])) >= 0:
-	# print(client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)), 0) for i in range(len(video_quality_Rk))]))
-	# print(client_message.quality_coefficient, client_message.variation_coefficient, client_message.rebuffering_coefficient)
-	# print(- client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)),0) for i in range(len(video_quality_Rk))]))
-	# print(f"Quality {client_message.quality_coefficient*sum(video_quality_Rk)}, Rebuffering {client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)),0) for i in range(len(video_quality_Rk))])}")
-	# QoE = (client_message.quality_coefficient*sum(video_quality_Rk) 
-	# - client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk[i]) for i in range(len(video_quality_Rk))])
-	# - client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)),0) for i in range(len(video_quality_Rk))]))
-	QoE = (client_message.quality_coefficient*sum(video_quality_Rk) 
-	- client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk[i]) for i in range(len(video_quality_Rk))])
-	- client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)),0) for i in range(len(video_quality_Rk))]))
+# def QoE_Score_Dynamic_Chunk(client_message, video_quality_Rk, video_quality_Rk_1, C_estimate, buffer_occupancy):
+# 	QoE = (client_message.quality_coefficient*sum(video_quality_Rk) 
+# 	- client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk[i]) for i in range(len(video_quality_Rk))])
+# 	- client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)),0) for i in range(len(video_quality_Rk))]))
+# 	# _QoE = client_message.quality_coefficient*sum(video_quality_Rk) 
+# 	# print(_QoE == QoE)
+# 	return QoE
+
+def QoE_Score_Dynamic_Chunk(client_message, video_quality_Rk, video_quality_Rk_1, C_estimate, buffer_occupancy):
+    #max -10
+	QoE = ((client_message.quality_coefficient*sum(video_quality_Rk) / len(video_quality_Rk))
+	- (client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk[i]) for i in range(len(video_quality_Rk))]) / len(video_quality_Rk))
+	- client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)), -10) for i in range(len(video_quality_Rk))]))
 	# _QoE = client_message.quality_coefficient*sum(video_quality_Rk) 
 	# print(_QoE == QoE)
-	return QoE
+	return QoE#, [(client_message.quality_coefficient*sum(video_quality_Rk) / len(video_quality_Rk)),- (client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk[i]) for i in range(len(video_quality_Rk))]) / len(video_quality_Rk)), - client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)),0) for i in range(len(video_quality_Rk))])]
 
-# def QoE_Score(client_message, video_quality_Rk_int, video_quality_Rk_chunck, video_quality_Rk_1, C_estimate, buffer_occupancy):
-#     # print(client_message.rebuffering_coefficient*sum([((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy)) for i in range(len(video_quality_Rk_chunck))]))
-#     QoE = client_message.quality_coefficient*sum(video_quality_Rk_int) 
-#     - client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk_int[i]) for i in range(len(video_quality_Rk_int))])
-#     - client_message.rebuffering_coefficient*sum([((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy)) for i in range(len(video_quality_Rk_chunck))])
-#     return QoE
+def QoE_Score_Static_Chunk(client_message, video_quality_Rk_int, video_quality_Rk_chunck, video_quality_Rk_1, C_estimate, buffer_occupancy):
+    # print(client_message.rebuffering_coefficient*sum([((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy)) for i in range(len(video_quality_Rk_chunck))]))
+    #change max to -12 
+    # QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_chunck)/len(video_quality_Rk_int))
+	QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_int)/len(video_quality_Rk_int))
+    - (client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk_int[i]) for i in range(len(video_quality_Rk_int))]) / len(video_quality_Rk_int))
+    - client_message.rebuffering_coefficient*sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy), -5) for i in range(len(video_quality_Rk_chunck))]))
+	return QoE
 
             
     
@@ -138,7 +143,7 @@ def Robust_MPC(client_message, C_estimate):
 	buffer_occupancy = client_message.buffer_seconds_until_empty
 	video_quality_Rk = [client_message.quality_bitrates]
 	# print(video_quality_Rk)
-	if len(client_message.upcoming_quality_bitrates) >=5:
+	if len(client_message.upcoming_quality_bitrates) >=MDP_K:
 		video_quality_Rk1 = client_message.upcoming_quality_bitrates[0:(MDP_K)]
 		#extends the video quaility list to the next MDP amount
 		video_quality_Rk.extend(video_quality_Rk1[0:(MDP_K-1)])
@@ -163,8 +168,8 @@ def Robust_MPC(client_message, C_estimate):
 	Best_QoE_List = []
 	for i in range(len(video_quality_Rk_MDP_list)):
 		# if (client_message.rebuffering_coefficient*sum([((video_quality_Rk_MDP_list[i] / C_estimate) - (buffer_occupancy+i)) for i in range(len(video_quality_Rk_MDP_list[i]))])) >= 0:
-		temp_QoE = QoE_Score(client_message, video_quality_Rk_MDP_list[i], video_quality_Rk1_MDP_list[i], C_estimate, buffer_occupancy)
-		# temp_QoE = QoE_Score(client_message, index_list[i], video_quality_Rk_MDP_list[i], index_list[i], C_estimate, buffer_occupancy)
+		# temp_QoE = QoE_Score_Dynamic_Chunk(client_message, video_quality_Rk_MDP_list[i], video_quality_Rk1_MDP_list[i], C_estimate, buffer_occupancy)
+		temp_QoE = QoE_Score_Static_Chunk(client_message, index_list[i], video_quality_Rk_MDP_list[i], index_list[i], C_estimate, buffer_occupancy)
 		if temp_QoE > Best_QoE:
 			# print(f"new best! {temp_QoE} > {Best_QoE} - {video_quality_Rk_MDP_list[i]}")
 			Best_QoE = temp_QoE
@@ -174,13 +179,28 @@ def Robust_MPC(client_message, C_estimate):
    
              
     
-    
-    
-    
-    
-    
 
-
+def logger(message: ClientMessage, quality: int, throughput_list, C_esti, C_err, nfile):
+	# if(self.log):
+	if nfile == False:
+		with open(LOG_FILE, 'a') as f:
+			occupancy = message.buffer_seconds_until_empty / message.buffer_max_size
+			f.write(f"{occupancy},{quality/(message.quality_levels-1)},{message.quality_bitrates[quality]},{throughput_list[len(throughput_list)-1]},{C_esti},{C_err}\n")
+			f.close()
+	else:
+		with open(LOG_FILE, 'w') as f:
+			occupancy = message.buffer_seconds_until_empty / message.buffer_max_size
+			f.write(f"{occupancy},{quality/(message.quality_levels-1)},{message.quality_bitrates[quality]},{throughput_list[len(throughput_list)-1]},{C_esti},{C_err}\n")
+			f.close()
+    
+    
+    
+global prev_bitrate
+prev_bitrate = 0
+global new_file
+new_file = True
+global download_time
+download_time = time.time()
 def student_entrypoint(client_message: ClientMessage):
 	"""
 	Your mission, if you choose to accept it, is to build an algorithm for chunk bitrate selection that provides
@@ -202,10 +222,15 @@ def student_entrypoint(client_message: ClientMessage):
 
 	:return: float Your quality choice. Must be one in the range [0 ... quality_levels - 1] inclusive.
 	"""
-	
+	# new_file = True
+	global prev_bitrate
+	global new_file
+	global download_time
 	if client_message.total_seconds_elapsed > 0:
+		# print(download_time-time.time())
+		download_time = time.time()-download_time
 		throughput_estimate_list.append(client_message.previous_throughput)
-		if(len(throughput_estimate_list) > 5):
+		if(len(throughput_estimate_list) > THROUGHPUT_CHUNKS):
 			del throughput_estimate_list[0]
 		c_esti, c_esti_err = harmonic_mean(throughput_estimate_list)
 		# print(f" c esti {c_esti}, err {c_esti_err}")
@@ -215,11 +240,13 @@ def student_entrypoint(client_message: ClientMessage):
 			Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate)
 			# print(f"Best QoE {Best_QoE}, QoE List {Best_QoE_List}")
 			prev_bitrate = client_message.quality_bitrates.index(Best_QoE_List[0])
-			# print(Best_QoE_List[0], client_message.quality_bitrates, prev_bitrate)
+			# print(Best_QoE_List[0], client_message.quality_bitrates, prev_bitrate)s
 			# print(f"Best QoE {Best_QoE}, QoE List {Best_QoE_List}, Bitrate Choise {prev_bitrate}")
+			logger(client_message, prev_bitrate, throughput_estimate_list, C_Estimate, c_esti_err, new_file)
+			new_file = False
 			return prev_bitrate
 		else:
-			return 0
+			return prev_bitrate
 	
 	else:
 		prev_bitrate = 0
