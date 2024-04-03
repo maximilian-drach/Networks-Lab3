@@ -8,7 +8,7 @@ import math
 # ======================================================================================================================
 
 UPPER_RESERVOIR = 1/6
-SMOOTHING_PARAMETER = 1/4
+SMOOTHING_PARAMETER = 1/8
 LOG_FILE = "bba.log"
 
 class ClientMessage:
@@ -100,6 +100,7 @@ class BBA:
 		if self.startup and self.num_chunks > 1:
 			delta_time = message.total_seconds_elapsed - self.last_chunk
 			if delta_time > message.buffer_seconds_per_chunk or quality > self.last_quality: 
+				print(f"leaving startup @ t={self.num_chunks}")
 				self.startup=False
 			elif occupancy >= reservoir and delta_time < message.buffer_seconds_per_chunk * 0.5:
 				quality = min(self.last_quality+1, message.quality_levels-1)
