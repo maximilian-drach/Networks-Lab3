@@ -17,13 +17,14 @@ def MDP_bitrate_chuck_list(index_combination_list, MDP_bitrate_list):
     for indexes in index_combination_list:
         temp_list = []
         for i in range(len(indexes)):
-            temp_list.append(MDP_bitrate_list[i][indexes[i]])
+            
+            temp_list.append(MDP_bitrate_list[i][indexes[i]]*(2**indexes[i]))
         bitrate_level_list.append(temp_list)
     return bitrate_level_list
         
-# bitrate_options = [[1.0, 2.0, 4.0], [0.8, 1.6, 3.2], [0.8, 1.6, 3.2], [0.6, 1.2, 2.4], [0.6, 1.2, 2.4]]
-bitrate_options = [[1.0, 2.0, 4.0], [0.8, 1.6, 3.2]]
-index_options = index_list_creator(3, 2)
+bitrate_options = [[1.0, 2.0, 4.0], [0.8, 1.6, 3.2], [0.8, 1.6, 3.2], [0.6, 1.2, 2.4], [0.6, 1.2, 2.4]]
+# bitrate_options = [[1.0, 2.0, 4.0], [0.8, 1.6, 3.2]]
+index_options = index_list_creator(3, 5)
 print(MDP_bitrate_chuck_list(index_options, bitrate_options))
 
 def QoE_Score(client_message, video_quality_Rk, video_quality_Rk_1, C_estimate):
