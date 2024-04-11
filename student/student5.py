@@ -1,16 +1,16 @@
 from typing import List
 import itertools
 import time
-
+import numpy as np
 # Adapted from code by Zach Peats
 
 # ======================================================================================================================
 # Do not touch the client message class!
 # ======================================================================================================================
 MDP_K = 5
-THROUGHPUT_CHUNKS = 10
+THROUGHPUT_CHUNKS = 5
 LOG_FILE = "mpc.log"
-BUFFER_GROWTH_SEC = 3
+# BUFFER_GROWTH_SEC = 5
 class ClientMessage:
     """
     This class will be filled out and passed to student_entrypoint for your algorithm.
@@ -65,7 +65,7 @@ class ClientMessage:
 # Your helper functions, variables, classes here. You may also write initialization routines to be called
 # when this script is first imported and anything else you wish.
 throughput_estimate_list = []
-
+throughput_estimate_list_longterm = []
 def harmonic_mean(num_list):
     tot = 0
     for num in num_list:
@@ -125,19 +125,30 @@ def QoE_Score_Dynamic_Chunk(client_message, video_quality_Rk, video_quality_Rk_1
     # print(_QoE == QoE)
     return QoE#, [(client_message.quality_coefficient*sum(video_quality_Rk) / len(video_quality_Rk)),- (client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk[i]) for i in range(len(video_quality_Rk))]) / len(video_quality_Rk)), - client_message.rebuffering_coefficient*sum([max(((video_quality_Rk[i] / C_estimate) - (buffer_occupancy)),0) for i in range(len(video_quality_Rk))])]
 
-def QoE_Score_Static_Chunk(client_message, video_quality_Rk_int, video_quality_Rk_chunck, video_quality_Rk_1, C_estimate, buffer_occupancy):
+# def QoE_Score_Static_Chunk(client_message, video_quality_Rk_int, video_quality_Rk_chunck, video_quality_Rk_1, C_estimate, buffer_occupancy):
+#     # print(client_message.rebuffering_coefficient*sum([((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy)) for i in range(len(video_quality_Rk_chunck))]))
+#     #change max to -12 
+#     # QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_chunck)/len(video_quality_Rk_int))
+#     QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_int)/len(video_quality_Rk_int))
+#     - (client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk_int[i]) for i in range(len(video_quality_Rk_int))]) / len(video_quality_Rk_int))
+#     - client_message.rebuffering_coefficient*max(sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy+i), -BUFFER_GROWTH_SEC) for i in range(len(video_quality_Rk_chunck))]), -MDP_K*BUFFER_GROWTH_SEC))
+#     #  - client_message.rebuffering_coefficient*sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy+i), -BUFFER_GROWTH_SEC) for i in range(len(video_quality_Rk_chunck))]))
+#     return QoE
+
+
+def QoE_Score_Static_Chunk(client_message, video_quality_Rk_int, video_quality_Rk_chunck, video_quality_Rk_1, C_estimate, buffer_occupancy, buffer_growth):
     # print(client_message.rebuffering_coefficient*sum([((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy)) for i in range(len(video_quality_Rk_chunck))]))
     #change max to -12 
     # QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_chunck)/len(video_quality_Rk_int))
     QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_int)/len(video_quality_Rk_int))
     - (client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk_int[i]) for i in range(len(video_quality_Rk_int))]) / len(video_quality_Rk_int))
-    # - client_message.rebuffering_coefficient*max(sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy+i), -BUFFER_GROWTH_SEC) for i in range(len(video_quality_Rk_chunck))]), -MDP_K*BUFFER_GROWTH_SEC))
-     - client_message.rebuffering_coefficient*sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy+i), -BUFFER_GROWTH_SEC) for i in range(len(video_quality_Rk_chunck))]))
+    - client_message.rebuffering_coefficient*max(sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy+i), -buffer_growth) for i in range(len(video_quality_Rk_chunck))]), -len(video_quality_Rk_chunck)*buffer_growth))
+    #  - client_message.rebuffering_coefficient*sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy+i), -BUFFER_GROWTH_SEC) for i in range(len(video_quality_Rk_chunck))]))
     return QoE
 
         
 
-def Robust_MPC(client_message, C_estimate):
+def Robust_MPC(client_message, C_estimate, buffer_growth):
 
     buffer_occupancy = client_message.buffer_seconds_until_empty
     video_quality_Rk = [client_message.quality_bitrates]
@@ -168,7 +179,7 @@ def Robust_MPC(client_message, C_estimate):
     for i in range(len(video_quality_Rk_MDP_list)):
         # if (client_message.rebuffering_coefficient*sum([((video_quality_Rk_MDP_list[i] / C_estimate) - (buffer_occupancy+i)) for i in range(len(video_quality_Rk_MDP_list[i]))])) >= 0:
         # temp_QoE = QoE_Score_Dynamic_Chunk(client_message, video_quality_Rk_MDP_list[i], video_quality_Rk1_MDP_list[i], C_estimate, buffer_occupancy)
-        temp_QoE = QoE_Score_Static_Chunk(client_message, index_list[i], video_quality_Rk_MDP_list[i], index_list[i], C_estimate, buffer_occupancy)
+        temp_QoE = QoE_Score_Static_Chunk(client_message, index_list[i], video_quality_Rk_MDP_list[i], index_list[i], C_estimate, buffer_occupancy, buffer_growth)
         # print(temp_QoE)
         if temp_QoE > Best_QoE:
             # print(f"new best! {temp_QoE} > {Best_QoE} - {video_quality_Rk_MDP_list[i]}")
@@ -229,23 +240,54 @@ def student_entrypoint(client_message: ClientMessage):
     # global c_tot_esti
     if client_message.total_seconds_elapsed > 0:
         throughput_estimate_list.append(client_message.previous_throughput)
+        throughput_estimate_list_longterm.append(client_message.previous_throughput)
         if(len(throughput_estimate_list) > THROUGHPUT_CHUNKS):
             del throughput_estimate_list[0]
         c_esti, c_esti_err = harmonic_mean(throughput_estimate_list)
-        # print(f" c esti {c_esti}, err {c_esti_err}")
-        C_Estimate = c_esti / (1 + c_esti_err)
+        C_Estimate_err = c_esti / (1 + c_esti_err)
+        C_Estimate = c_esti
+        
+        
+        if (len(throughput_estimate_list_longterm) > 2*client_message.buffer_max_size):
+            del throughput_estimate_list_longterm[0]
+        c_esti, c_esti_err = harmonic_mean(throughput_estimate_list_longterm)
+        # Longterm = np.array(throughput_estimate_list)
+        # C_Estimate_Longterm = np.mean(Longterm)
+        # C_Estimate_Longterm = C_Estimate_Longterm - 3*np.std(Longterm)
+        C_Estimate_Longterm = c_esti / (1 + c_esti_err)
+        
+        num_upcoming = min(len(client_message.upcoming_quality_bitrates), int(2*client_message.buffer_max_size))
         # c_tot_esti = ALPHA * c_tot_esti + (1-ALPHA)*C_Estimate
         # print(f" prev th {client_message.previous_throughput}, c esti {c_esti}, err {c_esti_err}, C EST {C_Estimate}")
         # print(f"buffer level: {client_message.buffer_seconds_until_empty}, prev_c {client_message.previous_throughput}")
         if len(client_message.upcoming_quality_bitrates) > 0:
-            Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate)
+            if C_Estimate_Longterm - sum([(client_message.upcoming_quality_bitrates[j][0]) for j in range(num_upcoming)])/num_upcoming <= 0:
+                # if client_message.buffer_seconds_until_empty < client_message.buffer_max_size*(1/4):
+                #     bitrate_choice = 0
+                #     # print("0 ", end="")
+                    # print(f"buffer level: {round(client_message.buffer_seconds_until_empty,3)}, prev_c {round(client_message.previous_throughput,3)}, esti_c {round(C_Estimate, 3)}, bitrate options {client_message.quality_bitrates} bitrate selected {bitrate_choice}, avrg_upcoming_rate {round(sum([(client_message.upcoming_quality_bitrates[j][0]) for j in range(num_upcoming)])/num_upcoming,3)},{round(sum([(client_message.upcoming_quality_bitrates[j][1]) for j in range(num_upcoming)])/num_upcoming,3)},{round(sum([(client_message.upcoming_quality_bitrates[j][2]) for j in range(num_upcoming)])/num_upcoming,3)}, chunk {238-len(client_message.upcoming_quality_bitrates)}")
+                #     return bitrate_choice
+                # else:
+                # if client_message.buffer_seconds_until_empty > client_message.buffer_max_size*(1/3):
+                #     Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate, 0)
+                #     print("<1/2 ", end="")
+                # else:
+                #     print(" 0 ", end="")
+                Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate_err, 10)
+            elif client_message.buffer_seconds_until_empty < client_message.buffer_max_size*(1/2):
+                    Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate, .1)
+                    print("<1/2 ", end="")
+            else:
+                Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate, -1)
+                print(">1/2 ", end="")
+            # Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate)
             # print(f"Best QoE {Best_QoE}, QoE List {Best_QoE_List}")
             bitrate_choice = [client_message.quality_bitrates[i]*(2**i) for i in range(len(client_message.quality_bitrates))].index(Best_QoE_List[0])
             # print(Best_QoE_List[0], client_message.quality_bitrates, prev_bitrate)s
             # print(f"Best QoE {Best_QoE}, QoE List {Best_QoE_List}, Bitrate Choise {prev_bitrate}")
             logger(client_message, bitrate_choice, throughput_estimate_list, C_Estimate, c_esti_err, new_file)
             new_file = False
-            # print(f"buffer level: {round(client_message.buffer_seconds_until_empty,3)}, prev_c {round(client_message.previous_throughput,3)}, esti_c {round(C_Estimate, 3)}, bitrate options {client_message.quality_bitrates} bitrate selected {bitrate_choice}, chunk {238-len(client_message.upcoming_quality_bitrates)}")
+            # print(f"buffer level: {round(client_message.buffer_seconds_until_empty,3)}, prev_c {round(client_message.previous_throughput,3)}, esti_c {round(C_Estimate, 3)}, bitrate options {client_message.quality_bitrates} bitrate selected {bitrate_choice}, avrg_upcoming_rate {round(sum([(client_message.upcoming_quality_bitrates[j][0]) for j in range(num_upcoming)])/num_upcoming,3)},{round(sum([(client_message.upcoming_quality_bitrates[j][1]) for j in range(num_upcoming)])/num_upcoming,3)},{round(sum([(client_message.upcoming_quality_bitrates[j][2]) for j in range(num_upcoming)])/num_upcoming,3)}, chunk {238-len(client_message.upcoming_quality_bitrates)}")
             return bitrate_choice
         else:
             return bitrate_choice

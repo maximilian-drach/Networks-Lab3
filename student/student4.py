@@ -244,7 +244,7 @@ def student_entrypoint(client_message: ClientMessage):
             # print(f"Best QoE {Best_QoE}, QoE List {Best_QoE_List}, Bitrate Choise {prev_bitrate}")
             logger(client_message, bitrate_choice, throughput_estimate_list, C_Estimate, c_esti_err, new_file)
             new_file = False
-            print(f"buffer level: {round(client_message.buffer_seconds_until_empty,3)}, prev_c {round(client_message.previous_throughput,3)}, esti_c {round(C_Estimate, 3)}, avg c {c_tot_esti}, bitrate options {client_message.quality_bitrates} bitrate selected {bitrate_choice}, chunk {238-len(client_message.upcoming_quality_bitrates)}")
+            # print(f"buffer level: {round(client_message.buffer_seconds_until_empty,3)}, prev_c {round(client_message.previous_throughput,3)}, esti_c {round(C_Estimate, 3)}, avg c {c_tot_esti}, bitrate options {client_message.quality_bitrates} bitrate selected {bitrate_choice}, chunk {238-len(client_message.upcoming_quality_bitrates)}")
             return bitrate_choice
         else:
             return bitrate_choice

@@ -99,7 +99,7 @@ def MDP_bitrate_chuck_list(index_combination_list, MDP_bitrate_list):
     for indexes in index_combination_list:
         temp_list = []
         for i in range(len(indexes)):
-            temp_list.append(MDP_bitrate_list[i][indexes[i]])
+            temp_list.append(MDP_bitrate_list[i][indexes[i]]*(2**indexes[i]))
         bitrate_level_list.append(temp_list)
     return bitrate_level_list
 
@@ -131,7 +131,7 @@ def QoE_Score_Static_Chunk(client_message, video_quality_Rk_int, video_quality_R
     # QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_chunck)/len(video_quality_Rk_int))
     QoE = ((client_message.quality_coefficient*sum(video_quality_Rk_int)/len(video_quality_Rk_int))
     - (client_message.variation_coefficient*sum([abs(video_quality_Rk_1[i] - video_quality_Rk_int[i]) for i in range(len(video_quality_Rk_int))]) / len(video_quality_Rk_int))
-    - client_message.rebuffering_coefficient*sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy), -10) for i in range(len(video_quality_Rk_chunck))]))
+    - client_message.rebuffering_coefficient*sum([max((video_quality_Rk_chunck[i] / C_estimate) - (buffer_occupancy), 0) for i in range(len(video_quality_Rk_chunck))]))
     return QoE
 
         
@@ -232,11 +232,12 @@ def student_entrypoint(client_message: ClientMessage):
         if len(client_message.upcoming_quality_bitrates) > 0:
             Best_QoE, Best_QoE_List = Robust_MPC(client_message, C_Estimate)
             # print(f"Best QoE {Best_QoE}, QoE List {Best_QoE_List}")
-            prev_bitrate = client_message.quality_bitrates.index(Best_QoE_List[0])
+            prev_bitrate = [client_message.quality_bitrates[i]*(2**i) for i in range(len(client_message.quality_bitrates))].index(Best_QoE_List[0])
             # print(Best_QoE_List[0], client_message.quality_bitrates, prev_bitrate)s
             # print(f"Best QoE {Best_QoE}, QoE List {Best_QoE_List}, Bitrate Choise {prev_bitrate}")
             logger(client_message, prev_bitrate, throughput_estimate_list, C_Estimate, c_esti_err, new_file)
             new_file = False
+            print(f"buffer level: {round(client_message.buffer_seconds_until_empty,3)}, prev_c {round(client_message.previous_throughput,3)}, esti_c {round(C_Estimate, 3)}, bitrate options {client_message.quality_bitrates} bitrate selected {prev_bitrate}, chunk {238-len(client_message.upcoming_quality_bitrates)}")
             return prev_bitrate
         else:
             return prev_bitrate
