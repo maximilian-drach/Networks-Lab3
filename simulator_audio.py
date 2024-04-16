@@ -51,7 +51,7 @@ def read_test(config_path: str, print_output: bool):
 		if print_output: print(f'\tLoaded {quality_levels} quality levels available.')
 
 		quality_coefficient = float(cfg.get(QUALITY_HEADING, QUAL_COEF))
-		rebuffering_coefficient = float(cfg.get(QUALITY_HEADING, BUF_COEF))
+		rebuffering_coefficient = float(cfg.get(QUALITY_HEADING, BUF_COEF))/2
 		audio_coefficient = 2*rebuffering_coefficient
 		variation_coefficient = float(cfg.get(QUALITY_HEADING, SWITCH_COEF))
 		if print_output: print(f'\tLoaded {quality_coefficient} quality coefficient,'
@@ -135,17 +135,11 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 		chosen_bitrate = chunk_qualities[chunknum][quality]
 
 		# Simulate download
-		time_elapsed, bwths = trace.simulate_download_from_time(current_time, chosen_bitrate)
+		time_elapsed = trace.simulate_download_from_time(current_time, chosen_bitrate)
 		rebuff_time = buffer.sim_chunk_download(chosen_bitrate, time_elapsed)
 
 		# Update state variables and log
 		prev_throughput = chosen_bitrate / time_elapsed
-		with open("throughputs.csv", "a") as f:
-			f.write(f"{current_time+time_elapsed},{0},{message.buffer_seconds_until_empty/message.buffer_max_size},{sum(bwths)/len(bwths)};")
-			f.write(f"{current_time},{prev_throughput},{message.buffer_seconds_until_empty/message.buffer_max_size},{sum(bwths)/len(bwths)};")
-			f.write(f"{current_time+time_elapsed},{prev_throughput},{message.buffer_seconds_until_empty/message.buffer_max_size},{sum(bwths)/len(bwths)};")
-			f.write(f"{current_time+time_elapsed},{0},{message.buffer_seconds_until_empty/message.buffer_max_size},{sum(bwths)/len(bwths)};")
-			f.close()
 		current_time += time_elapsed
 		current_time += buffer.wait_until_buffer_is_not_full(verbose and print_output)
 		logger.log_bitrate_choice(current_time, quality, chosen_bitrate)

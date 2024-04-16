@@ -4,7 +4,7 @@ class Scorecard:
     """
     A class for logging video player chunk choices and calculating the resulting view metrics
     """
-    def __init__(self, quality_coeff: float, rebuffer_coeff: float, switch_coeff: float, chunk_length: float):
+    def __init__(self, quality_coeff: float, rebuffer_coeff: float, switch_coeff: float, audio_coeff: float, chunk_length: float):
         """
         Args:
             quality_coeff : Used for calculating video QoE. See output_results for explanation.
@@ -15,10 +15,12 @@ class Scorecard:
         self.quality_coeff = quality_coeff
         self.rebuffer_coeff = rebuffer_coeff
         self.switch_coeff = switch_coeff
+        self.audio_coeff = audio_coeff
         self.chunk_length = chunk_length
 
         self.chunk_info = []
         self.rebuffers = []
+        self.audio_rebuffers = []
 
     def log_bitrate_choice(self, time: float, quality: int, bitrate: float):
         """
@@ -42,6 +44,19 @@ class Scorecard:
         """
         if rebuffer_length > .01:
             self.rebuffers.append(
+                {'time': time, 'rebuffer_length': rebuffer_length, 'chunknum': chunknum}
+            )
+    
+    def log_audio_rebuffer(self, time: float, rebuffer_length: float, chunknum: int):
+        """
+        Logs one rebuffer for the player
+        Args:
+            time : Time at which the rebuffer occurs.
+            rebuffer_length : # of seconds the rebuffer lasts. If <= 0, no rebuffer is logged.
+            chunknum : Which chunk is being waited on.
+        """
+        if rebuffer_length > .01:
+            self.audio_rebuffers.append(
                 {'time': time, 'rebuffer_length': rebuffer_length, 'chunknum': chunknum}
             )
 

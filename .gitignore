@@ -1,2 +1,4 @@
 __pycache__/
+student/__pycache__
+Classes/__pycache__
 *.log
