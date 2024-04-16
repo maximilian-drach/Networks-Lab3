@@ -12,15 +12,15 @@ with open("bba.log", "r") as f:
 
     fig, ax = plt.subplots(2)
     ax[0].plot(occupancy, color="orange")
-    ax[0].set_ylabel("Occupancy")
+    ax[0].set_ylabel("Buffer Occupancy (orange)")
     ax02 = ax[0].twinx()
     ax02.plot(quality, color="blue")
-    ax02.set_ylabel("Quality")
+    ax02.set_ylabel("Quality (blue)")
 
     ax[1].plot(occupancy, color="orange")
-    ax[1].set_ylabel("Occupancy")
+    ax[1].set_ylabel("Buffer Occupancy (orange)")
     ax12 = ax[1].twinx()
     ax12.plot(bitrate, color="blue")
-    ax12.set_ylabel("Real Bitrate")
+    ax12.set_ylabel("Real Bitrate (blue)")
 
     plt.show()

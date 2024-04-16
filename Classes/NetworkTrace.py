@@ -11,6 +11,10 @@ class NetworkTrace:
             bandwidths : List of tuples, (Start time in seconds, bandwidth in Mbps)
         """
         self.bwlist = bandwidths
+        with open("bwths.csv", "w") as f:
+            for t, b in bandwidths:
+                f.write(f"{t},{b};")
+            f.close()
 
     def get_current_timesegment(self, cur_time: float) -> Tuple[float, float]:
         """ Returns the time segement of cur_time as a tuple (Start time in seconds, bandwidth in Mbps) """
