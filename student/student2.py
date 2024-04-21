@@ -95,7 +95,7 @@ class BBA:
 		quality = 0
 		if(occupancy < reservoir): quality = 0
 		elif(occupancy > (message.buffer_max_size - upper_reservoir)): quality = message.quality_levels-1
-		else: quality = int(math.floor((message.quality_levels) * ((occupancy - reservoir) / (message.buffer_max_size - reservoir - upper_reservoir)))
+		else: quality = int(math.floor((message.quality_levels) * ((occupancy - reservoir) / (message.buffer_max_size - reservoir - upper_reservoir))))
 
 		if self.startup and self.num_chunks > 1:
 			delta_time = message.total_seconds_elapsed - self.last_chunk

@@ -2,3 +2,9 @@
 2-BBA
 7-AudioMPC
 6-Improved MPC-with longterm
+
+
+4 - MPC (Cheating cuz it knows ahead of time)
+7 - QoE Absolute 
+8 - AudioMPC with Audio
+9 - MPC with Aduio\
