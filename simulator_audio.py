@@ -5,6 +5,7 @@ from Classes import SimBuffer, NetworkTrace, Scorecard
 import sys
 from importlib import reload
 import os
+import matplotlib.pyplot as plt
 
 # ======================================================================================================================
 # CONFIG PARAMETERS
@@ -42,9 +43,11 @@ def read_test(config_path: str, print_output: bool):
 		cfg = configparser.RawConfigParser(allow_no_value=True, inline_comment_prefixes='#')
 		cfg.read(config_path)
 
-		chunk_length = float(cfg.get(VIDEO_HEADING, CHUNK_LENGTH))
+		# chunk_length = float(cfg.get(VIDEO_HEADING, CHUNK_LENGTH))
+		chunk_length = 0.25
 		base_chunk_cost = float(cfg.get(VIDEO_HEADING, BASE_CHUNK_SIZE))
-		client_buffer_size = float(cfg.get(VIDEO_HEADING, CLIENT_BUFF_SIZE))
+		# client_buffer_size = float(cfg.get(VIDEO_HEADING, CLIENT_BUFF_SIZE))
+		client_buffer_size = 2.0
 		if print_output: print(f'\tLoaded chunk length {chunk_length} seconds, base cost {base_chunk_cost} megabytes.')
 
 		quality_levels = int(cfg.get(QUALITY_HEADING, QUALITY_LEVELS))+1
@@ -105,6 +108,10 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 	current_time = 0
 	prev_throughput = 0
 
+	qualities = []
+	bitrates = []
+	t = []
+
 	# Communication loop with student (for all chunks):
 	for chunknum in range(len(chunk_qualities)):
 		# Set up message for student
@@ -133,6 +140,9 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 			print("Student returned invalid quality, exiting")
 			break
 		chosen_bitrate = chunk_qualities[chunknum][quality]
+		qualities.append(quality)
+		bitrates.append(chosen_bitrate)
+		t.append(current_time)
 
 		# Simulate download
 		time_elapsed = trace.simulate_download_from_time(current_time, chosen_bitrate)
@@ -144,10 +154,19 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 		current_time += buffer.wait_until_buffer_is_not_full(verbose and print_output)
 		logger.log_bitrate_choice(current_time, quality, chosen_bitrate)
 		logger.log_audio_rebuffer(current_time - rebuff_time, rebuff_time, chunknum)
-		logger.log_rebuffer(current_time, chunk_length, chunknum)
+		if quality < 1: logger.log_rebuffer(current_time, chunk_length, chunknum)
 
 	if print_output:
 		logger.output_results(verbose=verbose)
+
+	fig, ax = plt.subplots(2,1)
+	ax[0].plot(t, qualities, label="Chosen Quality Level", color='blue')
+	ax[0].set_xlabel("Time (sec)")
+	ax[0].set_ylabel("Chosen Quality Level")
+	ax[1].plot(t, bitrates, label="Chosen Real Bitrate", color='blue')
+	ax[0].set_xlabel("Time (sec)")
+	ax[1].set_ylabel("Chosen Real Bitrate (mbps)")
+	fig.savefig(f"{config_file.replace('.ini', '')}")
 
 	return logger.get_qual_rebuff_var_qoe()
 
