@@ -1,5 +1,5 @@
 import os
-import simulator
+import simulator_audio
 from importlib import reload
 import sys
 
@@ -15,13 +15,14 @@ def main(student_algo: str):
     # Run main loop, print output
     sum_qoe = 0
     print(f'\nTesting student algorithm {student_algo}')
-    for test in os.listdir(TEST_DIRECTORY):
-        reload(simulator)
-        quality, variation, rebuff, qoe = simulator.main(os.path.join(TEST_DIRECTORY, test), student_algo, False, False)
+    for test in [t for t in os.listdir(TEST_DIRECTORY) if t.split(".")[-1] == "ini"]:
+        reload(simulator_audio)
+        quality, variation, rebuff, audio_rebuff, qoe = simulator_audio.main(os.path.join(TEST_DIRECTORY, test), student_algo, False, False)
         print(f'\tTest {test: <12}:'
               f' Total Quality {quality:8.2f},'
               f' Total Variation {variation:8.2f},'
-              f' Rebuffer Time {rebuff:8.2f},'
+              f' Time w/o video {rebuff:8.2f},'
+              f' Time w/o audio {audio_rebuff:8.2f},'
               f' Total QoE {qoe:8.2f}')
         sum_qoe += qoe
 

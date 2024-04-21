@@ -97,12 +97,33 @@ class Scorecard:
         text = ''
         for rebuffer in self.rebuffers:
             if print_output:
-                text += f'\tRebuffer at time {rebuffer["time"]:.2f} detected! ' \
+                text += f'\Dropped video at time {rebuffer["time"]:.2f} detected! ' \
                         f'Lasted {rebuffer["rebuffer_length"]:.2f}' \
                         f' seconds. Buffering between chunks {rebuffer["chunknum"] - 1} and {rebuffer["chunknum"]}\n'
 
         if print_output:
             print(f'{len(self.rebuffers)} rebuffers detected. Total rebuffer time: {rebuff_time:.2f}')
+            print(text)
+
+        return rebuff_time
+    
+    def get_audio_rebuffer_time(self, print_output: bool = False) -> float:
+        """
+        Calculates the total amount of rebuffering that occurred since logging began.
+        Args:
+            print_output : Whether to print rebuffering info.
+        :return: float total rebuffer time
+        """
+        rebuff_time = sum(r['rebuffer_length'] for r in self.audio_rebuffers)
+        text = ''
+        for rebuffer in self.audio_rebuffers:
+            if print_output:
+                text += f'\Dropped audio at time {rebuffer["time"]:.2f} detected! ' \
+                        f'Lasted {rebuffer["rebuffer_length"]:.2f}' \
+                        f' seconds. Buffering between chunks {rebuffer["chunknum"] - 1} and {rebuffer["chunknum"]}\n'
+
+        if print_output:
+            print(f'{len(self.audio_rebuffers)} rebuffers detected. Total rebuffer time: {rebuff_time:.2f}')
             print(text)
 
         return rebuff_time
@@ -137,18 +158,20 @@ class Scorecard:
             print('\n')
         total_quality = self.get_total_quality(print_output=verbose)
         rebuff_time = self.get_rebuffer_time(print_output=verbose)
+        audio_rebuff_time = self.get_audio_rebuffer_time(print_output=verbose) 
         variation = self.count_switches(print_output=verbose)
 
         print('Test results:')
         print(f'\tTotal quality:            {total_quality:.2f}')
-        print(f'\tTotal rebuffer time:      {rebuff_time:.2f}')
+        print(f'\tTotal time w/o video:     {rebuff_time:.2f}')
+        print(f'\tTotal time w/o audio:     {audio_rebuff_time:.2f}')
         print(f'\tTotal variation:          {variation:.2f}')
         print(f'User quality of experience = '
               f'[{self.quality_coeff:.2f}(Quality)'
               f' - {self.rebuffer_coeff:.2f}(Rebuffer Time)'
               f' - {self.switch_coeff:.2f}(Variation)] / (Chunk Count)')
 
-        qoe = total_quality * self.quality_coeff - rebuff_time * self.rebuffer_coeff - variation * self.switch_coeff
+        qoe = total_quality * self.quality_coeff - rebuff_time * self.rebuffer_coeff - variation * self.switch_coeff - audio_rebuff_time * self.audio_coeff
         qoe /= len(self.chunk_info)
         print(f'User quality of experience: {qoe:.3f}\n')
         print('=' * 120)
@@ -162,8 +185,9 @@ class Scorecard:
         """
         total_quality = self.get_total_quality()
         rebuff_time = self.get_rebuffer_time()
+        audio_rebuff_time = self.get_audio_rebuffer_time()
         variation = self.count_switches()
-        qoe = total_quality * self.quality_coeff - rebuff_time * self.rebuffer_coeff - variation * self.switch_coeff
+        qoe = total_quality * self.quality_coeff - rebuff_time * self.rebuffer_coeff - variation * self.switch_coeff - audio_rebuff_time * self.audio_coeff
         qoe /= len(self.chunk_info)
 
-        return total_quality, variation, rebuff_time, qoe
+        return total_quality, variation, rebuff_time, audio_rebuff_time, qoe
