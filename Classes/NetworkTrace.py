@@ -20,7 +20,7 @@ class NetworkTrace:
         """ Returns the time segement of cur_time as a tuple (Start time in seconds, bandwidth in Mbps) """
         return min(self.bwlist, key=lambda x: abs(x[0] - cur_time) if cur_time > x[0] else math.inf)
 
-    def simulate_download_from_time(self, time: float, size: float) -> float:
+    def simulate_download_from_time(self, time: float, chunk_length: float, size: float) -> float:
         """
         Calculates the amount of time it takes for a chunk of the given size to be downloaded starting from the given
         time under the varying bandwidths of this trace
@@ -30,6 +30,7 @@ class NetworkTrace:
         :return: float Number of seconds to download
         """
         cum_time = 0
+        size *= chunk_length
         timeseg = self.get_current_timesegment(time)
         while True:
             # Find next bandwidth change

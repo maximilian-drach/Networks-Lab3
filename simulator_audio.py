@@ -44,7 +44,7 @@ def read_test(config_path: str, print_output: bool):
 		cfg.read(config_path)
 
 		# chunk_length = float(cfg.get(VIDEO_HEADING, CHUNK_LENGTH))
-		chunk_length = 0.25
+		chunk_length = 0.5
 		base_chunk_cost = float(cfg.get(VIDEO_HEADING, BASE_CHUNK_SIZE))
 		# client_buffer_size = float(cfg.get(VIDEO_HEADING, CLIENT_BUFF_SIZE))
 		client_buffer_size = 2.0
@@ -110,6 +110,7 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 
 	qualities = []
 	bitrates = []
+	buffer_occupancies = []
 	t = []
 
 	# Communication loop with student (for all chunks):
@@ -127,6 +128,7 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 		message.quality_levels = len(chunk_qualities[chunknum])
 		message.quality_bitrates = chunk_qualities[chunknum]
 		message.upcoming_quality_bitrates = chunk_qualities[chunknum+1:] if chunknum < len(chunk_qualities) - 1 else []
+		# print("quality bitrates=",message.quality_bitrates)
 		message.audio_quality_bitrate = .128
 		# Quality
 		message.quality_coefficient = logger.quality_coeff
@@ -142,10 +144,11 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 		chosen_bitrate = chunk_qualities[chunknum][quality]
 		qualities.append(quality)
 		bitrates.append(chosen_bitrate)
+		buffer_occupancies.append(buffer.seconds_left)
 		t.append(current_time)
 
 		# Simulate download
-		time_elapsed = trace.simulate_download_from_time(current_time, chosen_bitrate)
+		time_elapsed = trace.simulate_download_from_time(current_time, chunk_length, chosen_bitrate)
 		rebuff_time = buffer.sim_chunk_download(chosen_bitrate, time_elapsed)
 
 		# Update state variables and log
@@ -159,16 +162,23 @@ def main(config_file: str, student_algo, verbose: bool, print_output=True) -> Tu
 	if print_output:
 		logger.output_results(verbose=verbose)
 
-	fig, ax = plt.subplots(2,1)
+	ret = logger.get_qual_rebuff_var_qoe()
+
+	fig, ax = plt.subplots(3,1,sharex=True)
+	fig.suptitle(f"MPC on {config_file.replace('.ini', '')}, QoE={'{:.2f}'.format(ret[-1])}")
 	ax[0].plot(t, qualities, label="Chosen Quality Level", color='blue')
-	ax[0].set_xlabel("Time (sec)")
+	ax[0].set_ylim(0, len(chunk_qualities[chunknum])-1)
 	ax[0].set_ylabel("Chosen Quality Level")
 	ax[1].plot(t, bitrates, label="Chosen Real Bitrate", color='blue')
-	ax[0].set_xlabel("Time (sec)")
+	ax[1].set_ylim(0, max([max(x) for x in chunk_qualities]))
 	ax[1].set_ylabel("Chosen Real Bitrate (mbps)")
-	fig.savefig(f"{config_file.replace('.ini', '')}")
+	ax[2].plot(t, buffer_occupancies, label="Buffer Occupancy", color='orange')
+	ax[2].set_ylim(0, 2.0)
+	ax[2].set_xlabel("Time (sec)")
+	ax[2].set_ylabel("Buffer Occupancy (sec)")
+	fig.savefig(f"{(config_file).replace('.ini', '')}_mpc")
 
-	return logger.get_qual_rebuff_var_qoe()
+	return ret
 
 
 if __name__ == '__main__':
