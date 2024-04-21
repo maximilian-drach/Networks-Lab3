@@ -15,7 +15,8 @@ def main(student_algo: str):
     # Run main loop, print output
     sum_qoe = 0
     print(f'\nTesting student algorithm {student_algo}')
-    for test in [t for t in os.listdir(TEST_DIRECTORY) if t.split(".")[-1] == "ini"]:
+    tests = [x for x in os.listdir(TEST_DIRECTORY) if x.split(".")[-1] == "ini"]
+    for test in tests:
         reload(simulator_audio)
         quality, variation, rebuff, audio_rebuff, qoe = simulator_audio.main(os.path.join(TEST_DIRECTORY, test), student_algo, False, False)
         print(f'\tTest {test: <12}:'
@@ -26,7 +27,7 @@ def main(student_algo: str):
               f' Total QoE {qoe:8.2f}')
         sum_qoe += qoe
 
-    print(f'\n\tAverage QoE over all tests: {sum_qoe / len(os.listdir(TEST_DIRECTORY)):.2f}')
+    print(f'\n\tAverage QoE over all tests: {sum_qoe / len(tests):.2f}')
 
 
 if __name__ == "__main__":

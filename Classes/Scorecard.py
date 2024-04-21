@@ -178,7 +178,7 @@ class Scorecard:
 
         return qoe
 
-    def get_qual_rebuff_var_qoe(self) -> Tuple[float, float, float, float]:
+    def get_qual_rebuff_var_qoe(self) -> Tuple[float, float, float, float, float]:
         """
         Returns the results for this test without printing anything
         :return: Tuple with the total quality, rebuffer time, total variation, and user QoE
